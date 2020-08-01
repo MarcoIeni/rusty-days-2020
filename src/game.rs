@@ -1,11 +1,12 @@
 use crate::cell::{Cell, CellState};
+use crate::config;
 use crate::renderer::Sync;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
 pub const TICK: f32 = 1.0 / 100.0;
 
-struct GameState {
+pub struct Game {
 	current: Vec<Cell>,
 	next: Vec<Cell>,
 	shared: Arc<RwLock<Vec<Cell>>>,
@@ -13,7 +14,18 @@ struct GameState {
 	tick_count: f32,
 }
 
-impl GameState {
+impl Game {
+	pub fn new(shared: Arc<RwLock<Vec<Cell>>>, sync: Sync) -> Self {
+		let current = shared.read().unwrap().clone();
+		Game {
+			next: Vec::with_capacity(current.len()),
+			current,
+			shared,
+			sync,
+			tick_count: 0.0,
+		}
+	}
+
 	fn tick(&mut self) {
 		self.tick_count += TICK;
 
@@ -51,12 +63,12 @@ impl GameState {
 	pub fn run(&mut self) {
 		loop {
 			let instant = Instant::now();
+			self.try_send();
 			self.tick_count = 0.0;
-			// Execute ticks until the
+			// Execute ticks until the real time passes
 			while instant.elapsed().as_secs_f32() < self.tick_count {
 				self.tick();
 			}
-			self.try_send();
 		}
 	}
 }
