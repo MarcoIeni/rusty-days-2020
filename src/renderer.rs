@@ -6,7 +6,7 @@ use memoffset::offset_of;
 use mpsc::{Receiver, RecvError, SendError, Sender, TryRecvError};
 use std::mem::size_of;
 use std::path::Path;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc, RwLock};
 
 pub struct Sync(Receiver<()>, Sender<()>);
 
@@ -31,28 +31,41 @@ impl Sync {
 }
 
 pub struct Renderer {
-	shared: Arc<Mutex<Vec<Cell>>>,
-	size: usize,
+	shared: Arc<RwLock<Vec<Cell>>>,
+	capacity: usize,
+	length: usize,
 	sync: Sync,
 }
 
 impl Renderer {
-	pub fn new(shared: Arc<Mutex<Vec<Cell>>>) -> Result<(Self, Sync), String> {
-		let initial = shared.lock().unwrap();
+	pub fn new(shared: Arc<RwLock<Vec<Cell>>>) -> Result<(Self, Sync), String> {
+		let initial = shared.read().unwrap();
 		let size = initial.len();
 		unsafe {
-			let vs = VertexShader::new(&Path::new("shaders/cell.vert"))?;
-			let vs = GeometryShader::new(&Path::new("shaders/cell.geom"))?;
-			let fs = FragmentShader::new(&Path::new("shaders/cell.frag"))?;
-			let program = Program::new(&vs, &fs)?;
+			// Bind everything once here so you can forget the ids
 
+			// Compile the shaders and the program
+			let vs = VertexShader::new(&Path::new("shaders/cell.vert"))?;
+			let gs = GeometryShader::new(&Path::new("shaders/cell.geom"))?;
+			let fs = FragmentShader::new(&Path::new("shaders/cell.frag"))?;
+			let program = Program::new(&vs, &gs, &fs)?;
 			Program::bind(&program);
 
+			// Create and bind a vertex array object
 			let vao = VertexArrayObject::new();
 			VertexArrayObject::bind(&vao);
 
+			// Create and bind a vertex buffer object
 			let vbo = VertexBufferObject::new(initial.len(), Some(&initial));
+			std::mem::drop(initial);
 			VertexBufferObject::bind(&vbo);
+
+			// Vertex attributes:
+			//
+			//  state   position    direction
+			// +------+-----+-----+-----+-----+
+			// | id:0 |   id:1    |   id:2    |
+			// +------+-----+-----+-----+-----+
 
 			VertexArrayObject::u8_attrib_format(0, 1, size_of::<Cell>(), offset_of!(Cell, state));
 			VertexArrayObject::f32_attrib_format(
@@ -68,14 +81,48 @@ impl Renderer {
 				offset_of!(Cell, direction),
 			);
 		}
-
+		// Create the communication channel
 		let (sync, other) = Sync::channel();
-		Ok((Self { shared, sync, size }, other))
+		Ok((
+			Self {
+				shared,
+				sync,
+				capacity: size,
+				length: size,
+			},
+			other,
+		))
 	}
 
 	pub fn update(&mut self) {
-		self.sync.recv().ok(); // TODO
+		// Tell the Game thread to update the shared buffer data
+		self.sync.send().expect("Game broke?!");
+		// Wait for a response from the Game thread
+		if let Ok(()) = self.sync.recv() {
+			// Lock the shared memory (readonly)
+			if let Ok(vec) = self.shared.read() {
+				// If the size has changed, the buffer must be reallocated
+				let size = vec.len();
+				if self.capacity < size {
+					self.capacity = size;
+					self.length = size;
+					unsafe { VertexBufferObject::resize(size, Some(&vec)) };
+				} else {
+					self.length = size;
+					unsafe { VertexBufferObject::write(0, &vec) }
+				}
+				// Drop the lock at this point, as it's not gonna need it anymore
+				std::mem::drop(vec);
+				// Render the scene
+				unsafe {
+					gl::Clear(gl::COLOR_BUFFER_BIT);
+					gl::DrawArrays(gl::POINTS, 0, self.length as i32);
+				}
+			} else {
+				// TODO
+			}
+		} else {
+			// TODO
+		}
 	}
-
-	pub fn render(&mut self) {}
 }

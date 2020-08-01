@@ -6,7 +6,7 @@ use crate::point::Point;
 pub enum CellState {
 	Male = 0,
 	Female = 1,
-	SlowFemale = 2,
+	TiredFemale = 2,
 	Child = 3,
 	Hunter = 4,
 }
@@ -14,11 +14,20 @@ pub enum CellState {
 impl CellState {
 	fn speed(&self) -> f32 {
 		let cell_speed = &config::get().cell_speed;
-		let slow_factor = &config::get().slow_factor;
 		match self {
 			Self::Male => cell_speed.male,
 			Self::Female => cell_speed.female,
-			Self::SlowFemale => cell_speed.female * slow_factor,
+			Self::TiredFemale => cell_speed.tired_female,
+			Self::Child => cell_speed.child,
+			Self::Hunter => cell_speed.hunter,
+		}
+	}
+	fn rotation_speed(&self) -> f32 {
+		let cell_speed = &config::get().cell_rotation_speed;
+		match self {
+			Self::Male => cell_speed.male,
+			Self::Female => cell_speed.female,
+			Self::TiredFemale => cell_speed.tired_female,
 			Self::Child => cell_speed.child,
 			Self::Hunter => cell_speed.hunter,
 		}
@@ -41,14 +50,24 @@ pub struct Cell {
 
 impl Cell {
 	pub fn steer(&mut self, direction: Point) {
-		let rotation_speed = config::get().rotation_speed;
+		// Get the maximum angle this type of cell can rotate
+		let rotation_speed = self.state.rotation_speed();
+		// Compute the dot product between the direction the cell is looking towards and the
+		// direction that points towards the other cell.
+		// This is used in order to know if the angle between those two directions is smaller
+		// than rotation_speed.
+		// That's because the dot product is equal to the cosine of that angle.
 		let dot = self.direction.dot(direction);
-		let is_right = self.direction.rotate_90cw().dot(direction) > 0.0;
 		let angle = if dot > rotation_speed.cos() {
 			rotation_speed
 		} else {
+			// If it's small enough than use that angle
 			dot.acos()
 		};
+		// Compute the dot product between the direction perpendicular to where the cell is
+		// looking and the one that points towards the other cell.
+		// That is used to know if the other cell is to the left or to the right of this cell
+		let is_right = self.direction.rotate_90cw().dot(direction) > 0.0;
 		let angle = if is_right { -angle } else { angle };
 		self.direction = self.direction.rotate(angle);
 	}
@@ -57,9 +76,10 @@ impl Cell {
 		self.position += self.direction * self.state.speed();
 	}
 
-	pub fn interact(&self, other: &Self) -> Self {
+	pub fn interact(&self, other: &Self) -> Option<Self> {
 		if self.can_see(other) {}
 		// TODO
+		None
 	}
 
 	pub fn can_see(&self, other: &Self) -> bool {
@@ -78,7 +98,7 @@ impl Cell {
 // 	position: Point,
 // 	direction: Point,
 // }
-// pub struct SlowFemale {
+// pub struct TiredFemale {
 // 	position: Point,
 // 	direction: Point,
 // }
