@@ -1,9 +1,9 @@
 use crate::cell::Cell;
 use crate::graphics::{
-	FragmentShader, Program, VertexArrayObject, VertexBufferObject, VertexShader,
+	FragmentShader, GeometryShader, Program, VertexArrayObject, VertexBufferObject, VertexShader,
 };
 use memoffset::offset_of;
-use mpsc::{Receiver, SendError, Sender, TryRecvError};
+use mpsc::{Receiver, RecvError, SendError, Sender, TryRecvError};
 use std::mem::size_of;
 use std::path::Path;
 use std::sync::{mpsc, Arc, Mutex};
@@ -19,6 +19,10 @@ impl Sync {
 		self.0.try_recv()
 	}
 
+	pub fn recv(&self) -> Result<(), RecvError> {
+		self.0.recv()
+	}
+
 	pub fn channel() -> (Self, Self) {
 		let (atx, brx) = mpsc::channel();
 		let (btx, arx) = mpsc::channel();
@@ -28,14 +32,17 @@ impl Sync {
 
 pub struct Renderer {
 	shared: Arc<Mutex<Vec<Cell>>>,
+	size: usize,
 	sync: Sync,
 }
 
 impl Renderer {
 	pub fn new(shared: Arc<Mutex<Vec<Cell>>>) -> Result<(Self, Sync), String> {
 		let initial = shared.lock().unwrap();
+		let size = initial.len();
 		unsafe {
 			let vs = VertexShader::new(&Path::new("shaders/cell.vert"))?;
+			let vs = GeometryShader::new(&Path::new("shaders/cell.geom"))?;
 			let fs = FragmentShader::new(&Path::new("shaders/cell.frag"))?;
 			let program = Program::new(&vs, &fs)?;
 
@@ -63,11 +70,11 @@ impl Renderer {
 		}
 
 		let (sync, other) = Sync::channel();
-		Ok((Self { shared, sync }, other))
+		Ok((Self { shared, sync, size }, other))
 	}
 
 	pub fn update(&mut self) {
-		self.sync.recv()
+		self.sync.recv().ok(); // TODO
 	}
 
 	pub fn render(&mut self) {}

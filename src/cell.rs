@@ -4,11 +4,11 @@ use crate::point::Point;
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum CellState {
-	Male = 1,
-	Female = 2,
-	SlowFemale = 3,
-	Child = 4,
-	Hunter = 5,
+	Male = 0,
+	Female = 1,
+	SlowFemale = 2,
+	Child = 3,
+	Hunter = 4,
 }
 
 impl CellState {
