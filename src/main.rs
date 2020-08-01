@@ -1,8 +1,10 @@
 mod cell;
 mod config;
-mod point;
 mod game;
+mod graphics;
+mod point;
+mod renderer;
 
 fn main() {
-    println!("Hello, world!");
+	println!("Hello, world!");
 }
