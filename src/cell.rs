@@ -1,7 +1,5 @@
+use crate::config;
 use crate::point::Point;
-
-/// maximum rotation angle in radians (per tick)
-const ROTATION_SPEED: f32 = 0.1;
 
 pub enum CellState {
     Male,
@@ -12,27 +10,54 @@ pub enum CellState {
 }
 
 pub struct Cell {
-	pub state: CellState,
-	pub position: Point,
-	pub direction: Point,
+    pub state: CellState,
+    pub position: Point,
+    pub direction: Point,
 }
 
 impl Cell {
-	pub fn steer(&mut self, direction: Point) {
-		let dot = self.direction.dot(direction);
-		let is_right = self.direction.rotate_90cw().dot(direction) > 0.0;
-		let angle = if dot > ROTATION_SPEED.cos() {
-			ROTATION_SPEED
-		} else {
-			dot.acos()
-		};
-		let angle = if is_right {
-			-angle
-		} else {
-			angle
-		};
-		self.direction = self.direction.rotate(angle);
-	}
+    pub fn steer(&mut self, direction: Point) {
+        let rotation_speed = config::get().rotation_speed;
+        let dot = self.direction.dot(direction);
+        let is_right = self.direction.rotate_90cw().dot(direction) > 0.0;
+        let angle = if dot > rotation_speed.cos() {
+            rotation_speed
+        } else {
+            dot.acos()
+        };
+        let angle = if is_right { -angle } else { angle };
+        self.direction = self.direction.rotate(angle);
+    }
+
+    pub fn advance(&mut self) {
+        self.position += self.direction * self.state.speed();
+    }
+
+    pub fn interact(&self, other: &Self) -> Self {
+        if self.can_see(other) {}
+        // TODO
+    }
+
+    pub fn can_see(&self, other: &Self) -> bool {
+        let difference = self.position - other.position;
+        let distance = difference.length();
+        // TODO match self.state {}
+        true
+    }
+}
+
+impl CellState {
+    fn speed(&self) -> f32 {
+        let cell_speed = &config::get().cell_speed;
+        let slow_factor = &config::get().slow_factor;
+        match self {
+            Self::Male => cell_speed.male,
+            Self::Female => cell_speed.female,
+            Self::SlowFemale => cell_speed.female * slow_factor,
+            Self::Child => cell_speed.child,
+            Self::Hunter => cell_speed.hunter,
+        }
+    }
 }
 
 // pub struct Male {
