@@ -30,7 +30,7 @@ fn main() {
 	// Load the opengl functions
 	gl::load_with(|symbol| window.context().get_proc_address(symbol) as *const _);
 
-	let cells = config::get().cells.to_vec();
+	let cells = config::get().cells.clone();
 	let initial_size = cells.len();
 	let shared = Arc::new(RwLock::new(cells));
 

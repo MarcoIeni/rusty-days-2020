@@ -1,0 +1,86 @@
+{
+	"cell_speed": {
+		"male": 1.0,
+		"female": 1.0,
+		"tired_female": 0.7,
+		"child": 2.0,
+		"hunter": 1.7
+	},
+	"cell_rotation_speed": {
+		"male": 0.2,
+		"female": 0.2,
+		"tired_female": 0.2,
+		"child": 0.2,
+		"hunter": 0.2
+	},
+	"sights": {
+		"male": 20.0,
+		"female": 5.0,
+		"child": 10.0,
+		"hunter": 20.0
+	},
+	"hunter_fov": 1.57079632679,
+	"hunter_kill_range": 2.0,
+	"wall_detect_range": 10.0,
+	"world_size": 100.0,
+	"cell_size": 2.0,
+	"tired_time": 200,
+	"growth_time": 500,
+	"cells": [
+		{
+			"state": "Male",
+			"position": {
+				"x": 12.0,
+				"y": 10.0
+			},
+			"direction": {
+				"x": 0.78539816339,
+				"y": 0.78539816339
+			}
+		},
+		{
+			"state": "Female",
+			"position": {
+				"x": -12.0,
+				"y": -10.0
+			},
+			"direction": {
+				"x": 0.78539816339,
+				"y": 0.78539816339
+			}
+		},
+		{
+			"state": "Female",
+			"position": {
+				"x": -10.0,
+				"y": -1.0
+			},
+			"direction": {
+				"x": 0.78539816339,
+				"y": 0.78539816339
+			}
+		},
+		{
+			"state": "Female",
+			"position": {
+				"x": -1.0,
+				"y": 10.0
+			},
+			"direction": {
+				"x": 0.78539816339,
+				"y": 0.78539816339
+			}
+		},
+		{
+			"state": "Hunter",
+			"position": {
+				"x": -40.0,
+				"y": 10.0
+			},
+			"direction": {
+				"x": 0.78539816339,
+				"y": 0.78539816339
+			}
+		}
+	]
+}

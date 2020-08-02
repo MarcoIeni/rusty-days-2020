@@ -1,6 +1,7 @@
+use serde::Deserialize;
 use std::ops::{Add, AddAssign, Mul, Neg, Sub};
 
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct Point {
 	pub x: f32,

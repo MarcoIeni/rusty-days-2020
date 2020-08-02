@@ -1,7 +1,8 @@
 use crate::config;
 use crate::point::Point;
+use serde::Deserialize;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 #[repr(u8)]
 pub enum CellState {
 	Male = 0,
@@ -41,6 +42,7 @@ impl CellState {
 			(Self::Hunter, Self::Hunter) => true,
 			(Self::Hunter, _) => false,
 			(_, Self::Hunter) => false,
+			(Self::Child, Self::Male) | (Self::Child, Self::Female) => false,
 			_ => true,
 		}
 	}
@@ -67,6 +69,7 @@ pub struct InteractionState<'a> {
 	/// nearest cell and distance to it
 	nearest: Option<(&'a Cell, f32)>,
 	alive: bool,
+	counter: Option<isize>,
 	cell: &'a Cell,
 }
 
@@ -75,6 +78,7 @@ impl<'a> InteractionState<'a> {
 		Self {
 			nearest: None,
 			alive: true,
+			counter: None,
 			cell,
 		}
 	}
@@ -96,6 +100,8 @@ impl<'a> InteractionState<'a> {
 			return;
 		}
 
+		let growth_time = config::get().growth_time;
+
 		if let Some(distance) = self.cell.can_see(other) {
 			match (self.cell.state, other.state) {
 				(CS::Hunter, CS::Hunter) => unreachable!(),
@@ -107,6 +113,24 @@ impl<'a> InteractionState<'a> {
 				}
 				(CS::Hunter, _) | (CS::Female, CS::Male) | (CS::Male, CS::Female) => {
 					self.update_nearest(distance, other);
+				}
+				(CS::Child, CS::Female) => {
+					if self.cell.age == growth_time {
+						if let Some(ref mut val) = self.counter {
+							*val += 1;
+						} else {
+							self.counter = Some(1);
+						}
+					}
+				}
+				(CS::Child, CS::Male) => {
+					if self.cell.age == growth_time {
+						if let Some(ref mut val) = self.counter {
+							*val -= 1;
+						} else {
+							self.counter = Some(-1);
+						}
+					}
 				}
 				_ => unreachable!(),
 			}
@@ -130,6 +154,9 @@ impl<'a> InteractionState<'a> {
 
 	/// Some if alive, None if it's dead
 	pub fn cell(&self) -> Option<Cell> {
+		let tired_time = config::get().tired_time;
+		let growth_time = config::get().growth_time;
+
 		if self.alive {
 			let self_cell = match self.cell.state {
 				CellState::Male | CellState::Hunter => {
@@ -153,6 +180,21 @@ impl<'a> InteractionState<'a> {
 						*self.cell
 					}
 				}
+				CellState::TiredFemale if self.cell.age == tired_time => {
+					Cell::new(CellState::Female, self.cell.position, self.cell.direction)
+				}
+				CellState::Child if self.cell.age == growth_time => {
+					let state = if let Some(val) = self.counter {
+						if val < 0 {
+							CellState::Female
+						} else {
+							CellState::Male
+						}
+					} else {
+						CellState::Hunter
+					};
+					Cell::new(state, self.cell.position, self.cell.direction)
+				}
 				_ => *self.cell,
 			};
 			Some(self_cell)
@@ -162,13 +204,14 @@ impl<'a> InteractionState<'a> {
 	}
 }
 
-#[derive(Clone, Copy, Default, Debug)]
+#[derive(Clone, Copy, Default, Debug, Deserialize)]
 #[repr(C, packed)]
 pub struct Cell {
 	pub state: CellState,
 	pub position: Point,
 	pub direction: Point,
-	pub stage: usize,
+	#[serde(skip)]
+	pub age: usize,
 }
 
 impl Cell {
@@ -177,7 +220,7 @@ impl Cell {
 			state,
 			position,
 			direction,
-			stage: 0,
+			age: 0,
 		}
 	}
 
@@ -209,6 +252,18 @@ impl Cell {
 
 	pub fn advance(&mut self) {
 		use std::f32::consts as c;
+
+		let tired_time = config::get().tired_time;
+
+		if self.state == CellState::Child {
+			self.age += 1;
+		} else if self.state == CellState::TiredFemale {
+			if self.age == tired_time {
+				self.state = CellState::Female;
+			} else {
+				self.age += 1;
+			}
+		}
 
 		let sight = config::get().wall_detect_range;
 		let wall = config::get().world_size;

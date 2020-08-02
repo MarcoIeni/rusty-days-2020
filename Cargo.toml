@@ -10,3 +10,6 @@ edition = "2018"
 gl = "0.14.0"
 memoffset = "0.5.5"
 glutin = "0.24.1"
+serde = { version = "1.0.114", features = ["derive"] }
+serde_json = "1.0"
+lazy_static = "1.4.0"
