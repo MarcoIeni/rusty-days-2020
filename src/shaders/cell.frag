@@ -10,12 +10,11 @@ flat in uint gs_state;
 
 void main(void){
 	if(gs_state!=uint(4)&&distance(gs_position,gs_center)>SIZE)discard;
-	vec4 colors[]={
-		vec4(0.,1.,.4157,1.),
-		vec4(.6824,0.,1.,1.),
-		vec4(1.,.8157,0.,1.),
-		vec4(0.,.6824,1.,1.),
-		vec4(1.,0.,0.,1.),
-	};
+	vec4 colors[5];
+	colors[0] = vec4(0.,1.,.4157,1.);
+	colors[1] = vec4(.6824,0.,1.,1.);
+	colors[2] = vec4(1.,.8157,0.,1.);
+	colors[3] = vec4(0.,.6824,1.,1.);
+	colors[4] = vec4(1.,0.,0.,1.);
 	fs_color=colors[gs_state];
 }
