@@ -1,3 +1,5 @@
+# Cellular Game of Life
+
 ![gif](/assets/test_run.gif)
 
 # Rules
@@ -30,6 +32,10 @@ All the cells normally goes at a constant speed towards a given direction.
 given radius and angle, pointed towards the direction they are moving
 
 **Other Cells**: their field of view is a circle centered on them with a give radius
+
+## Inital state
+
+The inital state and all the properties of the simulation can be modified inside [config.json](/config.json)
 
 # Hackaton rules
 
