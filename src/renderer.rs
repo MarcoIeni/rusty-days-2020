@@ -1,4 +1,5 @@
 use crate::cell::Cell;
+use crate::config;
 use crate::graphics::{
 	FragmentShader, GeometryShader, Program, VertexArrayObject, VertexBufferObject, VertexShader,
 };
@@ -70,6 +71,11 @@ impl Renderer {
 			Program::bind(&program);
 			opengl_error!();
 
+			let world_size_loc = program.uniform_location("world_size").unwrap();
+			let cell_size_loc = program.uniform_location("cell_size").unwrap();
+			gl::Uniform1f(world_size_loc, config::get().world_size);
+			gl::Uniform1f(cell_size_loc, config::get().cell_size);
+
 			// Create and bind a vertex array object
 			vao = VertexArrayObject::new();
 			VertexArrayObject::bind(&vao);
@@ -140,9 +146,11 @@ impl Renderer {
 				self.window.swap_buffers().ok(); // TODO
 			} else {
 				// TODO
+				panic!()
 			}
 		} else {
 			// TODO
+			panic!()
 		}
 	}
 }

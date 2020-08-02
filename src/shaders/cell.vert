@@ -1,6 +1,6 @@
 #version 330
 
-#define SCALE.001
+uniform float world_size;
 
 layout(location=0)in uint state;
 layout(location=1)in vec2 position;
@@ -13,5 +13,5 @@ void main(void){
 	vs_state=state;
 	vs_direction=direction;
 	
-	gl_Position=vec4(position,0,1);
+	gl_Position=vec4(position/world_size,0,1);
 }

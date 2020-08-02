@@ -1,6 +1,8 @@
 #version 330
 
-#define SIZE .1
+uniform float world_size;
+uniform float cell_size;
+
 #define RAD120 2.09439510239
 
 layout(points)in;
@@ -28,21 +30,24 @@ void emit(vec2 pos,vec2 center){
 }
 
 void main(void){
+	float size=cell_size/world_size;
+	float size_sqrt2=size*sqrt(2);
+	
 	vec2 dir=vs_direction[0];
 	vec2 position=gl_in[0].gl_Position.xy;
 	
 	if(vs_state[0]==uint(4)){
 		vec2 ldir=rotate(RAD120+.1,dir);
 		vec2 rdir=rotate(-RAD120-.1,dir);
-		emit(position+dir*SIZE,position);
-		emit(position+ldir*SIZE,position);
-		emit(position+rdir*SIZE,position);
+		emit(position+dir*size,position);
+		emit(position+ldir*size,position);
+		emit(position+rdir*size,position);
 	}else{
 		vec2 pdir=vec2(dir.y,-dir.x);
-		emit(position+(dir+pdir)*SIZE,position);
-		emit(position+(dir-pdir)*SIZE,position);
-		emit(position-(dir-pdir)*SIZE,position);
-		emit(position-(dir+pdir)*SIZE,position);
+		emit(position+dir*size,position);
+		emit(position+pdir*size_sqrt2,position);
+		emit(position-pdir*size_sqrt2,position);
+		emit(position-dir*size_sqrt2,position);
 	}
 	EndPrimitive();
 }
