@@ -8,7 +8,7 @@ pub struct Config<'a> {
 	/// Speed of each cell in units/s
 	pub cell_speed: CellSpeed,
 	/// maximum rotation angle in radians (measured in deg/s)
-	pub cell_rotation_speed: CellSpeed,
+	pub cell_rotation_speed: CellRotationSpeed,
 	pub cells: &'a [Cell], // Maybe use a Vec?
 }
 
@@ -20,6 +20,14 @@ pub struct CellSpeed {
 	pub hunter: f32,
 }
 
+pub struct CellRotationSpeed {
+	pub male: f32,
+	// pub female: f32,
+	// pub tired_female: f32,
+	// pub child: f32,
+	pub hunter: f32,
+}
+
 static CONFIGURATION: &Config = &Config {
 	cell_speed: CellSpeed {
 		male: 0.01,
@@ -28,15 +36,15 @@ static CONFIGURATION: &Config = &Config {
 		child: 0.01,
 		hunter: 0.01,
 	},
-	cell_rotation_speed: CellSpeed {
+	cell_rotation_speed: CellRotationSpeed {
 		male: 0.01,
-		female: 0.01,
-		tired_female: 0.01,
-		child: 0.01,
+		// female: 0.01,
+		// tired_female: 0.01,
+		// child: 0.01,
 		hunter: 0.01,
 	},
 	cells: &[Cell::new(
-		CellState::Female,
+		CellState::Hunter,
 		Point::new(0.0, 0.0),
 		Point::new(FRAC_1_SQRT_2, FRAC_1_SQRT_2), // 45 deg
 	)],

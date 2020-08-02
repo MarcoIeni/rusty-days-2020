@@ -26,10 +26,11 @@ impl CellState {
 		let cell_speed = &config::get().cell_rotation_speed;
 		match self {
 			Self::Male => cell_speed.male,
-			Self::Female => cell_speed.female,
-			Self::TiredFemale => cell_speed.tired_female,
-			Self::Child => cell_speed.child,
+			// Self::Female => cell_speed.female,
+			// Self::TiredFemale => cell_speed.tired_female,
+			// Self::Child => cell_speed.child,
 			Self::Hunter => cell_speed.hunter,
+			_ => unreachable!(),
 		}
 	}
 }

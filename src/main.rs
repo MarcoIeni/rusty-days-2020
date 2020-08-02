@@ -20,6 +20,7 @@ fn main() {
 	// Create the window builder
 	let wb = WindowBuilder::new()
 		.with_title("Rusty Days") // Set the title of the window
+		.with_resizable(false)
 		.with_inner_size(LogicalSize::new(500.0, 500.0)); // Set the size of the window
 
 	// Create the window context from the winow builder and the event loop

@@ -45,9 +45,6 @@ impl Game {
 	}
 
 	fn tick(&mut self) {
-		// self.tick_count += config::TICK;
-		// println!("Current: {:?}", self.current);
-
 		let mut dead = Vec::new();
 		for (i, cell) in self.current.iter().enumerate() {
 			for other_cell in self.current[..i].iter() {
@@ -89,15 +86,9 @@ impl Game {
 	pub fn update(&mut self) {
 		// Execute ticks until the relative amout of real time passes (?)
 		if self.last_update.elapsed().as_secs_f32() > config::TICK {
-			// self.tick_count = 0.0;
 			self.try_send();
 			self.last_update = Instant::now();
 		}
-		// println!(
-		// 	"Game tick cout: {}, elapsed: {}",
-		// 	self.tick_count,
-		// 	self.last_update.elapsed().as_secs_f32()
-		// );
 		self.tick();
 	}
 }
