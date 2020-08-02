@@ -17,7 +17,7 @@ impl Game {
 	pub fn new(shared: Arc<RwLock<Vec<Cell>>>, sync: Sync) -> Self {
 		let current = shared.read().unwrap().clone();
 		Game {
-			next: Vec::with_capacity(current.len()),
+			next: current.clone(),
 			current,
 			shared,
 			sync,
@@ -35,11 +35,9 @@ impl Game {
 		match result {
 			InteractionResult::Lives(cell) => {
 				cells[id] = cell;
-				// cells[id].advance();
 			}
 			InteractionResult::Procreates(cell, child) => {
 				cells[id] = cell;
-				// cells[id].advance();
 				cells.push(child);
 			}
 			InteractionResult::Dies => deads.push(id),
@@ -48,6 +46,7 @@ impl Game {
 
 	fn tick(&mut self) {
 		// self.tick_count += config::TICK;
+		// println!("Current: {:?}", self.current);
 
 		let mut dead = Vec::new();
 		for (i, cell) in self.current.iter().enumerate() {
@@ -65,6 +64,8 @@ impl Game {
 		for (i, cell_idx) in dead.into_iter().enumerate() {
 			self.next.remove(cell_idx - i);
 		}
+		self.next.iter_mut().for_each(Cell::advance);
+		self.current = self.next.clone();
 	}
 
 	pub fn try_send(&self) {

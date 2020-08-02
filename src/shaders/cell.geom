@@ -1,6 +1,6 @@
 #version 330
 
-#define SIZE 1.
+#define SIZE .1
 #define RAD120 2.09439510239
 
 layout(points)in;

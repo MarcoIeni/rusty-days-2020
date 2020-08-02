@@ -1,6 +1,6 @@
 #version 330
 
-#define SIZE 1.
+#define SIZE.1
 
 out vec4 fs_color;
 

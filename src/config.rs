@@ -2,7 +2,7 @@ use crate::cell::{Cell, CellState};
 use crate::point::Point;
 use std::f32::consts::FRAC_1_SQRT_2;
 
-pub const TICK: f32 = 1.0 / 100.0;
+pub const TICK: f32 = 0.001;
 
 pub struct Config<'a> {
 	/// Speed of each cell in units/s
@@ -22,18 +22,18 @@ pub struct CellSpeed {
 
 static CONFIGURATION: &Config = &Config {
 	cell_speed: CellSpeed {
-		male: 1.0,
-		female: 1.0,
-		tired_female: 1.0,
-		child: 1.0,
-		hunter: 1.0,
+		male: 0.01,
+		female: 0.01,
+		tired_female: 0.01,
+		child: 0.01,
+		hunter: 0.01,
 	},
 	cell_rotation_speed: CellSpeed {
-		male: 1.0,
-		female: 1.0,
-		tired_female: 1.0,
-		child: 1.0,
-		hunter: 1.0,
+		male: 0.01,
+		female: 0.01,
+		tired_female: 0.01,
+		child: 0.01,
+		hunter: 0.01,
 	},
 	cells: &[Cell::new(
 		CellState::Female,
