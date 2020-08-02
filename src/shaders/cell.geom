@@ -6,8 +6,8 @@
 layout(points)in;
 layout(triangle_strip,max_vertices=4)out;
 
-flat in uint vs_state;
-in vec2 vs_direction;
+flat in uint vs_state[];
+in vec2 vs_direction[];
 
 out vec2 gs_position;
 out vec2 gs_center;
@@ -19,32 +19,30 @@ vec2 rotate(float a,vec2 v){
 	return vec2(v.x*c-v.y*s,v.x*s+v.y*c);
 }
 
-void emit(vec2 pos){
-	vec2 a=postion+(dir+pdir)*SIZE;
-	gs_state=vs_state;
-	gs_center=position;
-	gs_position=a;
-	EmitVertex(a);
+void emit(vec2 pos,vec2 center){
+	gs_state=vs_state[0];
+	gs_center=center;
+	gs_position=pos;
+	gl_Position=vec4(pos,0,1);
+	EmitVertex();
 }
 
 void main(void){
-	
-	vec2 dir=vs_direction;
-	
+	vec2 dir=vs_direction[0];
 	vec2 position=gl_in[0].gl_Position.xy;
 	
-	if(gs_state==4){
-		vec2 ldir=rotate(RAD120,dir);
-		vec2 rdir=rotate(-RAD120,dir);
-		emit(position+dir);
-		emit(position+ldir);
-		emit(position+rdir);
+	if(vs_state[0]==uint(4)){
+		vec2 ldir=rotate(RAD120+.1,dir);
+		vec2 rdir=rotate(-RAD120-.1,dir);
+		emit(position+dir*SIZE,position);
+		emit(position+ldir*SIZE,position);
+		emit(position+rdir*SIZE,position);
 	}else{
 		vec2 pdir=vec2(dir.y,-dir.x);
-		emit(postion+(dir+pdir)*SIZE);
-		emit(postion+(dir-pdir)*SIZE);
-		emit(postion-(dir+pdir)*SIZE);
-		emit(postion-(dir-pdir)*SIZE);
+		emit(position+(dir+pdir)*SIZE,position);
+		emit(position+(dir-pdir)*SIZE,position);
+		emit(position-(dir-pdir)*SIZE,position);
+		emit(position-(dir+pdir)*SIZE,position);
 	}
 	EndPrimitive();
 }

@@ -1,17 +1,16 @@
-use crate::cell::{Cell, CellState};
+use crate::cell::{Cell, InteractionResult};
 use crate::config;
 use crate::renderer::Sync;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
-
-pub const TICK: f32 = 1.0 / 100.0;
 
 pub struct Game {
 	current: Vec<Cell>,
 	next: Vec<Cell>,
 	shared: Arc<RwLock<Vec<Cell>>>,
 	sync: Sync,
-	tick_count: f32,
+	// tick_count: f32,
+	last_update: Instant,
 }
 
 impl Game {
@@ -22,27 +21,49 @@ impl Game {
 			current,
 			shared,
 			sync,
-			tick_count: 0.0,
+			// tick_count: 0.0,
+			last_update: Instant::now(),
+		}
+	}
+
+	fn interation_result(
+		result: InteractionResult,
+		id: usize,
+		cells: &mut Vec<Cell>,
+		deads: &mut Vec<usize>,
+	) {
+		match result {
+			InteractionResult::Lives(cell) => {
+				cells[id] = cell;
+				// cells[id].advance();
+			}
+			InteractionResult::Procreates(cell, child) => {
+				cells[id] = cell;
+				// cells[id].advance();
+				cells.push(child);
+			}
+			InteractionResult::Dies => deads.push(id),
 		}
 	}
 
 	fn tick(&mut self) {
-		self.tick_count += TICK;
+		// self.tick_count += config::TICK;
 
 		let mut dead = Vec::new();
 		for (i, cell) in self.current.iter().enumerate() {
 			for other_cell in self.current[..i].iter() {
-				match cell.interact(other_cell) {
-					Some(cell) => self.next[i] = cell,
-					None => dead.push(i),
-				}
+				Self::interation_result(cell.interact(other_cell), i, &mut self.next, &mut dead);
 			}
 			for other_cell in self.current[i + 1..].iter() {
-				match cell.interact(other_cell) {
-					Some(cell) => self.next[i] = cell,
-					None => dead.push(i),
-				}
+				Self::interation_result(cell.interact(other_cell), i, &mut self.next, &mut dead);
 			}
+		}
+		// If you remove an item at the start of the vector, all the other items indices will be
+		// decreased by one, and keeping track of this reordering of the idices is impossible
+		// without sorting the items first.
+		dead.sort_unstable();
+		for (i, cell_idx) in dead.into_iter().enumerate() {
+			self.next.remove(cell_idx - i);
 		}
 	}
 
@@ -53,22 +74,29 @@ impl Game {
 				if vec.len() != self.current.len() {
 					vec.resize(self.current.len(), Cell::default());
 				}
-				vec.copy_from_slice(&self.current)
+				vec.copy_from_slice(&self.current);
+				std::mem::drop(vec); // Free the lock
+				self.sync.send().ok(); // TODO
 			} else {
 				// TODO
 			}
+		} else {
+			// TODO
 		}
 	}
 
-	pub fn run(&mut self) {
-		loop {
-			let instant = Instant::now();
+	pub fn update(&mut self) {
+		// Execute ticks until the relative amout of real time passes (?)
+		if self.last_update.elapsed().as_secs_f32() > config::TICK {
+			// self.tick_count = 0.0;
 			self.try_send();
-			self.tick_count = 0.0;
-			// Execute ticks until the real time passes
-			while instant.elapsed().as_secs_f32() < self.tick_count {
-				self.tick();
-			}
+			self.last_update = Instant::now();
 		}
+		// println!(
+		// 	"Game tick cout: {}, elapsed: {}",
+		// 	self.tick_count,
+		// 	self.last_update.elapsed().as_secs_f32()
+		// );
+		self.tick();
 	}
 }

@@ -50,7 +50,7 @@ impl VertexArrayObject {
 		gl::VertexAttribIPointer(
 			location,
 			elements as i32,
-			gl::BYTE,
+			gl::UNSIGNED_BYTE,
 			stride as i32,
 			offset as *const _,
 		);

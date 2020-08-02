@@ -1,7 +1,7 @@
 use crate::config;
 use crate::point::Point;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum CellState {
 	Male = 0,
@@ -40,8 +40,14 @@ impl Default for CellState {
 	}
 }
 
-#[derive(Clone, Copy, Default)]
-#[repr(C)]
+pub enum InteractionResult {
+	Procreates(Cell, Cell),
+	Lives(Cell),
+	Dies,
+}
+
+#[derive(Clone, Copy, Default, Debug)]
+#[repr(C, packed)]
 pub struct Cell {
 	pub state: CellState,
 	pub position: Point,
@@ -49,9 +55,17 @@ pub struct Cell {
 }
 
 impl Cell {
+	pub const fn new(state: CellState, position: Point, direction: Point) -> Self {
+		Self {
+			state,
+			position,
+			direction,
+		}
+	}
+
 	pub fn steer(&mut self, direction: Point) {
 		// Get the maximum angle this type of cell can rotate
-		let rotation_speed = self.state.rotation_speed();
+		let rotation_speed = self.state.rotation_speed() * config::TICK;
 		// Compute the dot product between the direction the cell is looking towards and the
 		// direction that points towards the other cell.
 		// This is used in order to know if the angle between those two directions is smaller
@@ -73,13 +87,13 @@ impl Cell {
 	}
 
 	pub fn advance(&mut self) {
-		self.position += self.direction * self.state.speed();
+		self.position += self.direction * self.state.speed() * config::TICK;
 	}
 
-	pub fn interact(&self, other: &Self) -> Option<Self> {
+	pub fn interact(&self, other: &Self) -> InteractionResult {
 		if self.can_see(other) {}
 		// TODO
-		None
+		InteractionResult::Lives(*self)
 	}
 
 	pub fn can_see(&self, other: &Self) -> bool {

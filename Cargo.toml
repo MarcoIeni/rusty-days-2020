@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 gl = "0.14.0"
 memoffset = "0.5.5"
+glutin = "0.24.1"

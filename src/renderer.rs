@@ -2,11 +2,21 @@ use crate::cell::Cell;
 use crate::graphics::{
 	FragmentShader, GeometryShader, Program, VertexArrayObject, VertexBufferObject, VertexShader,
 };
+use glutin::{PossiblyCurrent, WindowedContext};
 use memoffset::offset_of;
 use mpsc::{Receiver, RecvError, SendError, Sender, TryRecvError};
 use std::mem::size_of;
 use std::path::Path;
 use std::sync::{mpsc, Arc, RwLock};
+
+macro_rules! opengl_error {
+	() => {
+		let error = gl::GetError();
+		if error != 0 {
+			panic!(format!("[file={}, line={}] {}", file!(), line!(), error))
+			}
+	};
+}
 
 pub struct Sync(Receiver<()>, Sender<()>);
 
@@ -35,30 +45,40 @@ pub struct Renderer {
 	capacity: usize,
 	length: usize,
 	sync: Sync,
+	window: WindowedContext<PossiblyCurrent>,
+	_opengl: (Program, VertexArrayObject, VertexBufferObject),
 }
 
 impl Renderer {
-	pub fn new(shared: Arc<RwLock<Vec<Cell>>>) -> Result<(Self, Sync), String> {
-		let initial = shared.read().unwrap();
-		let size = initial.len();
-		unsafe {
-			// Bind everything once here so you can forget the ids
+	pub fn new(
+		shared: Arc<RwLock<Vec<Cell>>>,
+		size: usize,
+		sync: Sync,
+		window: WindowedContext<PossiblyCurrent>,
+	) -> Result<Self, String> {
+		if !window.is_current() {
+			panic!("The provided window is not the current context!")
+		}
 
+		let (program, vao, vbo);
+		unsafe {
 			// Compile the shaders and the program
-			let vs = VertexShader::new(&Path::new("shaders/cell.vert"))?;
-			let gs = GeometryShader::new(&Path::new("shaders/cell.geom"))?;
-			let fs = FragmentShader::new(&Path::new("shaders/cell.frag"))?;
-			let program = Program::new(&vs, &gs, &fs)?;
+			let vs = VertexShader::new(&Path::new("src/shaders/cell.vert"))?;
+			let gs = GeometryShader::new(&Path::new("src/shaders/cell.geom"))?;
+			let fs = FragmentShader::new(&Path::new("src/shaders/cell.frag"))?;
+			program = Program::new(&vs, &gs, &fs)?;
 			Program::bind(&program);
+			opengl_error!();
 
 			// Create and bind a vertex array object
-			let vao = VertexArrayObject::new();
+			vao = VertexArrayObject::new();
 			VertexArrayObject::bind(&vao);
+			opengl_error!();
 
 			// Create and bind a vertex buffer object
-			let vbo = VertexBufferObject::new(initial.len(), Some(&initial));
-			std::mem::drop(initial);
+			vbo = VertexBufferObject::new::<Cell>(size, None);
 			VertexBufferObject::bind(&vbo);
+			opengl_error!();
 
 			// Vertex attributes:
 			//
@@ -80,18 +100,16 @@ impl Renderer {
 				size_of::<Cell>(),
 				offset_of!(Cell, direction),
 			);
+			opengl_error!();
 		}
-		// Create the communication channel
-		let (sync, other) = Sync::channel();
-		Ok((
-			Self {
-				shared,
-				sync,
-				capacity: size,
-				length: size,
-			},
-			other,
-		))
+		Ok(Self {
+			shared,
+			sync,
+			capacity: size,
+			length: 0,
+			window,
+			_opengl: (program, vao, vbo),
+		})
 	}
 
 	pub fn update(&mut self) {
@@ -117,7 +135,9 @@ impl Renderer {
 				unsafe {
 					gl::Clear(gl::COLOR_BUFFER_BIT);
 					gl::DrawArrays(gl::POINTS, 0, self.length as i32);
+					opengl_error!();
 				}
+				self.window.swap_buffers().ok(); // TODO
 			} else {
 				// TODO
 			}

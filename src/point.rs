@@ -1,13 +1,17 @@
 use std::ops::{Add, AddAssign, Mul, Sub};
 
-#[derive(Clone, Copy, Default)]
-#[repr(C)]
+#[derive(Clone, Copy, Default, Debug)]
+#[repr(C, packed)]
 pub struct Point {
 	pub x: f32,
 	pub y: f32,
 }
 
 impl Point {
+	pub const fn new(x: f32, y: f32) -> Self {
+		Self { x, y }
+	}
+
 	pub fn dot(self, other: Self) -> f32 {
 		self.x * other.x + self.y * other.y
 	}
