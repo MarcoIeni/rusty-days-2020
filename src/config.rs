@@ -19,6 +19,7 @@ pub struct Config {
 	pub cell_size: f32,
 	pub tired_time: usize,
 	pub growth_time: usize,
+	pub hunter_lifetime: usize,
 }
 
 #[derive(Deserialize)]

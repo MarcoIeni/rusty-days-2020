@@ -42,7 +42,9 @@ impl CellState {
 			(Self::Hunter, Self::Hunter) => true,
 			(Self::Hunter, _) => false,
 			(_, Self::Hunter) => false,
-			(Self::Child, Self::Male) | (Self::Child, Self::Female) => false,
+			(Self::Child, Self::Male)
+			| (Self::Child, Self::Female)
+			| (Self::Child, Self::TiredFemale) => false,
 			_ => true,
 		}
 	}
@@ -67,7 +69,8 @@ impl Default for CellState {
 
 pub struct InteractionState<'a> {
 	/// nearest cell and distance to it
-	nearest: Option<(&'a Cell, f32)>,
+	nearest: Option<f32>,
+	towards: Option<Point>,
 	alive: bool,
 	counter: Option<isize>,
 	cell: &'a Cell,
@@ -79,16 +82,21 @@ impl<'a> InteractionState<'a> {
 			nearest: None,
 			alive: true,
 			counter: None,
+			towards: None,
 			cell,
 		}
 	}
 
 	fn update_nearest(&mut self, distance: f32, other_cell: &'a Cell) {
 		match self.nearest {
-			None => self.nearest = Some((other_cell, distance)),
-			Some((_, curr_distance)) => {
+			None => {
+				self.nearest = Some(distance);
+				self.towards = Some(other_cell.position);
+			}
+			Some(curr_distance) => {
 				if distance < curr_distance {
-					self.nearest = Some((other_cell, distance));
+					self.nearest = Some(distance);
+					self.towards = Some(other_cell.position);
 				}
 			}
 		}
@@ -114,22 +122,30 @@ impl<'a> InteractionState<'a> {
 				(CS::Hunter, _) | (CS::Female, CS::Male) | (CS::Male, CS::Female) => {
 					self.update_nearest(distance, other);
 				}
-				(CS::Child, CS::Female) => {
-					if self.cell.age == growth_time {
+				(CS::Child, CS::Female) | (CS::Child, CS::TiredFemale) => {
+					if self.cell.age >= growth_time {
 						if let Some(ref mut val) = self.counter {
 							*val += 1;
 						} else {
 							self.counter = Some(1);
 						}
+					} else if let Some(ref mut point) = self.towards {
+						*point = point.between(other.position);
+					} else {
+						self.towards = Some(other.position);
 					}
 				}
 				(CS::Child, CS::Male) => {
-					if self.cell.age == growth_time {
+					if self.cell.age >= growth_time {
 						if let Some(ref mut val) = self.counter {
 							*val -= 1;
 						} else {
 							self.counter = Some(-1);
 						}
+					} else if let Some(ref mut point) = self.towards {
+						*point = point.between(other.position);
+					} else {
+						self.towards = Some(other.position);
 					}
 				}
 				_ => unreachable!(),
@@ -140,9 +156,9 @@ impl<'a> InteractionState<'a> {
 	/// if the cell is female and she had a child it returns the child itself, None otherwise.
 	pub fn child(&self) -> Option<Cell> {
 		if self.cell.state == CellState::Female {
-			if let Some((father, _)) = self.nearest {
-				let child_position = self.cell.position.between(father.position);
-				let child_direction = -self.cell.direction.bisect(father.direction);
+			if let Some(father) = self.towards {
+				let child_position = self.cell.position.between(father);
+				let child_direction = -self.cell.direction;
 				Some(Cell::new(CellState::Child, child_position, child_direction))
 			} else {
 				None
@@ -153,22 +169,26 @@ impl<'a> InteractionState<'a> {
 	}
 
 	/// Some if alive, None if it's dead
-	pub fn cell(&self) -> Option<Cell> {
+	pub fn cell(&mut self) -> Option<Cell> {
 		let tired_time = config::get().tired_time;
 		let growth_time = config::get().growth_time;
+		let hunter_kill_range = config::get().hunter_kill_range;
+
+		if self.cell.state == CellState::Hunter {
+			let hunter_lifetime = config::get().hunter_lifetime;
+			if let Some(nearest) = self.nearest {
+				if nearest > hunter_kill_range {
+					if self.cell.age == hunter_lifetime {
+						self.alive = false;
+					}
+				}
+			} else if self.cell.age == hunter_lifetime {
+				self.alive = false;
+			}
+		}
 
 		if self.alive {
 			let self_cell = match self.cell.state {
-				CellState::Male | CellState::Hunter => {
-					if let Some((cell, _)) = self.nearest {
-						let direction = cell.position - self.cell.position;
-						let mut self_cell = *self.cell;
-						self_cell.steer(direction.normilized());
-						self_cell
-					} else {
-						*self.cell
-					}
-				}
 				CellState::Female => {
 					if self.nearest.is_some() {
 						Cell::new(
@@ -180,10 +200,21 @@ impl<'a> InteractionState<'a> {
 						*self.cell
 					}
 				}
-				CellState::TiredFemale if self.cell.age == tired_time => {
+				CellState::Hunter => {
+					if let Some(nearest) = self.nearest {
+						if nearest < hunter_kill_range {
+							Cell::new(CellState::Hunter, self.cell.position, self.cell.direction)
+						} else {
+							*self.cell
+						}
+					} else {
+						*self.cell
+					}
+				}
+				CellState::TiredFemale if self.cell.age >= tired_time => {
 					Cell::new(CellState::Female, self.cell.position, self.cell.direction)
 				}
-				CellState::Child if self.cell.age == growth_time => {
+				CellState::Child if self.cell.age >= growth_time => {
 					let state = if let Some(val) = self.counter {
 						if val < 0 {
 							CellState::Female
@@ -196,6 +227,14 @@ impl<'a> InteractionState<'a> {
 					Cell::new(state, self.cell.position, self.cell.direction)
 				}
 				_ => *self.cell,
+			};
+			let self_cell = if let Some(point) = self.towards {
+				let direction = point - self_cell.position;
+				let mut cell = self_cell;
+				cell.steer(direction.normilized());
+				cell
+			} else {
+				self_cell
 			};
 			Some(self_cell)
 		} else {
@@ -255,14 +294,16 @@ impl Cell {
 
 		let tired_time = config::get().tired_time;
 
-		if self.state == CellState::Child {
-			self.age += 1;
-		} else if self.state == CellState::TiredFemale {
-			if self.age == tired_time {
-				self.state = CellState::Female;
-			} else {
-				self.age += 1;
+		match self.state {
+			CellState::Child | CellState::Hunter => self.age += 1,
+			CellState::TiredFemale => {
+				if self.age == tired_time {
+					self.state = CellState::Female;
+				} else {
+					self.age += 1;
+				}
 			}
+			_ => (),
 		}
 
 		let sight = config::get().wall_detect_range;
@@ -315,24 +356,3 @@ impl Cell {
 		}
 	}
 }
-
-// pub struct Male {
-// 	position: Point,
-// 	direction: Point,
-// }
-// pub struct Female {
-// 	position: Point,
-// 	direction: Point,
-// }
-// pub struct TiredFemale {
-// 	position: Point,
-// 	direction: Point,
-// }
-// pub struct Child {
-// 	position: Point,
-// 	direction: Point,
-// }
-// pub struct Hunter {
-// 	position: Point,
-// 	direction: Point,
-// }
